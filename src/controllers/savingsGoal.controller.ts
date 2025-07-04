@@ -108,17 +108,42 @@ export const getSavingsGoalsSummary = async (req: Request, res: Response): Promi
 
 export const getActiveSavingsGoals = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { limit = '3' } = req.query;
-        const limitNumber = Math.min(parseInt(limit as string, 10) || 3, 10);
-        
+        const { limit = 3 } = req.query;
         const goals = await savingsGoalService.getActiveSavingsGoals(
             req.user!.id,
-            limitNumber
+            Number(limit)
         );
         res.status(200).json(goals);
     } catch (error) {
         res.status(500).json({ 
             message: 'Error retrieving active savings goals', 
+            error 
+        });
+    }
+};
+
+export const getMonthlySavings = async (req: Request, res: Response): Promise<void> => {
+    const { month } = req.query;
+    
+    if (!month || typeof month !== 'string') {
+        res.status(400).json({ 
+            message: 'Month is a required parameter (YYYY-MM)' 
+        });
+        return;
+    }
+
+    try {
+        const total = await savingsGoalService.getMonthlySavings(
+            req.user!.id,
+            month
+        );
+        res.status(200).json({ 
+            totalSaved: total,
+            month
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Error retrieving monthly savings', 
             error 
         });
     }

@@ -124,57 +124,46 @@ router.delete('/:id', authMiddleware, transactionController.deleteTransaction);
  * @swagger
  * /api/transactions/summary:
  *   get:
- *     summary: Lấy tổng thu/chi theo tháng
+ *     summary: Lấy tổng thu nhập hoặc chi tiêu theo tháng
  *     tags: [Transaction]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: month
- *         schema:
- *           type: string
- *           example: "2025-07"
- *     responses:
- *       200:
- *         description: Tổng thu/chi
- */
-router.get('/summary', authMiddleware, transactionController.getTransactionSummary);
-
-/**
- * @swagger
- * /api/transactions/summary/monthly:
- *   get:
- *     summary: Lấy tổng thu/chi hàng tháng
- *     description: Lấy tổng thu nhập và chi tiêu theo từng tháng
- *     tags: [Transaction]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: month
+ *         required: true
  *         schema:
  *           type: string
  *           format: YYYY-MM
  *           example: "2025-07"
  *         description: Tháng cần xem báo cáo (định dạng YYYY-MM)
+ *       - in: query
+ *         name: type
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [income, expense]
+ *           example: "income"
+ *         description: Loại giao dịch (income - thu nhập, expense - chi tiêu)
  *     responses:
  *       200:
- *         description: Thành công
+ *         description: Tổng thu nhập hoặc chi tiêu trong tháng
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 income:
+ *                 total:
  *                   type: number
- *                   description: Tổng thu nhập
- *                 expense:
- *                   type: number
- *                   description: Tổng chi tiêu
+ *                   description: Tổng số tiền
+ *                 month:
+ *                   type: string
+ *                   description: Tháng được truy vấn (YYYY-MM)
+ *                 type:
+ *                   type: string
+ *                   description: Loại giao dịch (income/expense)
  */
-router.get('/summary/monthly', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
-    transactionController.getMonthlyTransactionSummary(req, res).catch(next);
-});
+router.get('/summary', authMiddleware, transactionController.getTransactionSummary);
 
 /**
  * @swagger
@@ -191,13 +180,16 @@ router.get('/summary/monthly', authMiddleware, (req: Request, res: Response, nex
  *         schema:
  *           type: integer
  *           default: 5
- *         description: Số lượng giao dịch tối đa cần lấy
+ *           minimum: 1
+ *           maximum: 50
+ *         description: Số lượng giao dịch tối đa cần lấy (từ 1 đến 50)
  *       - in: query
  *         name: sort
  *         schema:
  *           type: string
  *           default: "-date"
- *         description: Sắp xếp theo trường (thêm dấu - để sắp xếp giảm dần)
+ *           enum: ["date", "-date", "amount", "-amount"]
+ *         description: Sắp xếp theo trường (date, -date, amount, -amount)
  *     responses:
  *       200:
  *         description: Danh sách giao dịch gần đây

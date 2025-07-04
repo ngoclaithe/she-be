@@ -12,15 +12,73 @@ const router = Router();
 
 /**
  * @swagger
+ * /api/savings:
+ *   get:
+ *     summary: Lấy tổng quan tiết kiệm trong tháng
+ *     description: Lấy tổng số tiền đã tiết kiệm trong tháng
+ *     tags: [Savings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: YYYY-MM
+ *           example: "2025-07"
+ *         description: Tháng cần xem báo cáo (định dạng YYYY-MM)
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalSaved:
+ *                   type: number
+ *                   description: Tổng số tiền đã tiết kiệm trong tháng
+ *                 month:
+ *                   type: string
+ *                   description: Tháng được truy vấn (YYYY-MM)
+ */
+router.get('/savings/summary', authMiddleware, savingsGoalController.getMonthlySavings);
+
+/**
+ * @swagger
  * /api/savings-goals:
  *   get:
  *     summary: Lấy danh sách mục tiêu tiết kiệm
+ *     description: Lấy danh sách các mục tiêu tiết kiệm với bộ lọc
  *     tags: [SavingsGoal]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 3
+ *           minimum: 1
+ *           maximum: 50
+ *         description: Số lượng mục tiêu tối đa cần lấy (từ 1 đến 50)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, completed, all]
+ *           default: "active"
+ *         description: Trạng thái mục tiêu (active - đang thực hiện, completed - đã hoàn thành, all - tất cả)
  *     responses:
  *       200:
  *         description: Danh sách mục tiêu tiết kiệm
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/SavingsGoal'
  */
 router.get('/', authMiddleware, savingsGoalController.getSavingsGoals);
 
@@ -151,45 +209,6 @@ router.get('/:id/progress', authMiddleware, savingsGoalController.getSavingsGoal
 
 /**
  * @swagger
- * /api/savings-goals/summary/monthly:
- *   get:
- *     summary: Lấy tổng quan tiết kiệm hàng tháng
- *     description: Lấy tổng số tiền đã tiết kiệm và mục tiêu theo từng tháng
- *     tags: [SavingsGoal]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: month
- *         schema:
- *           type: string
- *           format: YYYY-MM
- *           example: "2025-07"
- *         description: Tháng cần xem báo cáo (định dạng YYYY-MM)
- *     responses:
- *       200:
- *         description: Thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalSaved:
- *                   type: number
- *                   description: Tổng số tiền đã tiết kiệm
- *                 totalTarget:
- *                   type: number
- *                   description: Tổng mục tiêu tiết kiệm
- *                 progressPercentage:
- *                   type: number
- *                   description: Phần trăm hoàn thành
- */
-router.get('/summary/monthly', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
-    savingsGoalController.getMonthlySavingsSummary(req, res).catch(next);
-});
-
-/**
- * @swagger
  * /api/savings-goals/summary:
  *   get:
  *     summary: Lấy tổng quan các mục tiêu tiết kiệm
@@ -220,39 +239,15 @@ router.get('/summary/monthly', authMiddleware, (req: Request, res: Response, nex
  *                 totalTarget:
  *                   type: number
  *                   description: Tổng mục tiêu tiết kiệm
+ *                 progressPercentage:
+ *                   type: number
+ *                   description: Phần trăm hoàn thành trung bình
+ *                 nearestDeadlineGoal:
+ *                   $ref: '#/components/schemas/SavingsGoal'
+ *                   description: Mục tiêu có thời hạn gần nhất
  */
 router.get('/summary', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
     savingsGoalController.getSavingsGoalsSummary(req, res).catch(next);
-});
-
-/**
- * @swagger
- * /api/savings-goals/active:
- *   get:
- *     summary: Lấy danh sách mục tiêu đang hoạt động
- *     description: Lấy danh sách các mục tiêu tiết kiệm đang hoạt động (chưa hoàn thành)
- *     tags: [SavingsGoal]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 3
- *         description: Số lượng mục tiêu tối đa cần lấy
- *     responses:
- *       200:
- *         description: Danh sách mục tiêu đang hoạt động
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/SavingsGoal'
- */
-router.get('/active', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
-    savingsGoalController.getActiveSavingsGoals(req, res).catch(next);
 });
 
 // Error handling middleware for savings goal routes
