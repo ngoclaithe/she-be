@@ -6,63 +6,63 @@ export interface SavingsGoal {
   name: string;
   targetAmount: number;
   currentAmount: number;
-  targetDate: Date;
-  createdAt: Date;
+  targetDate: string; 
+  createdAt: string;  
 }
 
-export class SavingsGoalModel {
-  private savingsGoals: SavingsGoal[] = [];
+// export class SavingsGoalModel {
+//   private savingsGoals: SavingsGoal[] = [];
 
-  constructor() {
-    this.savingsGoals = [];
-  }
+//   constructor() {
+//     this.savingsGoals = [];
+//   }
 
-  createSavingsGoal(userId: string, name: string, targetAmount: number, targetDate: Date): SavingsGoal {
-    const newGoal: SavingsGoal = {
-      id: uuidv4(),
-      userId,
-      name,
-      targetAmount,
-      currentAmount: 0,
-      targetDate,
-      createdAt: new Date(),
-    };
-    this.savingsGoals.push(newGoal);
-    return newGoal;
-  }
+//   createSavingsGoal(userId: string, name: string, targetAmount: number, targetDate: Date): SavingsGoal {
+//     const newGoal: SavingsGoal = {
+//       id: uuidv4(),
+//       userId,
+//       name,
+//       targetAmount,
+//       currentAmount: 0,
+//       targetDate,
+//       createdAt: new Date(),
+//     };
+//     this.savingsGoals.push(newGoal);
+//     return newGoal;
+//   }
 
-  getSavingsGoals(userId: string): SavingsGoal[] {
-    return this.savingsGoals.filter(goal => goal.userId === userId);
-  }
+//   getSavingsGoals(userId: string): SavingsGoal[] {
+//     return this.savingsGoals.filter(goal => goal.userId === userId);
+//   }
 
-  updateSavingsGoal(id: string, updates: Partial<SavingsGoal>): SavingsGoal | null {
-    const goalIndex = this.savingsGoals.findIndex(goal => goal.id === id);
-    if (goalIndex === -1) return null;
+//   updateSavingsGoal(id: string, updates: Partial<SavingsGoal>): SavingsGoal | null {
+//     const goalIndex = this.savingsGoals.findIndex(goal => goal.id === id);
+//     if (goalIndex === -1) return null;
 
-    this.savingsGoals[goalIndex] = { ...this.savingsGoals[goalIndex], ...updates };
-    return this.savingsGoals[goalIndex];
-  }
+//     this.savingsGoals[goalIndex] = { ...this.savingsGoals[goalIndex], ...updates };
+//     return this.savingsGoals[goalIndex];
+//   }
 
-  deleteSavingsGoal(id: string): boolean {
-    const goalIndex = this.savingsGoals.findIndex(goal => goal.id === id);
-    if (goalIndex === -1) return false;
+//   deleteSavingsGoal(id: string): boolean {
+//     const goalIndex = this.savingsGoals.findIndex(goal => goal.id === id);
+//     if (goalIndex === -1) return false;
 
-    this.savingsGoals.splice(goalIndex, 1);
-    return true;
-  }
+//     this.savingsGoals.splice(goalIndex, 1);
+//     return true;
+//   }
 
-  contributeToSavingsGoal(id: string, amount: number): SavingsGoal | null {
-    const goal = this.savingsGoals.find(goal => goal.id === id);
-    if (!goal) return null;
+//   contributeToSavingsGoal(id: string, amount: number): SavingsGoal | null {
+//     const goal = this.savingsGoals.find(goal => goal.id === id);
+//     if (!goal) return null;
 
-    goal.currentAmount += amount;
-    return goal;
-  }
+//     goal.currentAmount += amount;
+//     return goal;
+//   }
 
-  getSavingsGoalProgress(id: string): number | null {
-    const goal = this.savingsGoals.find(goal => goal.id === id);
-    if (!goal) return null;
+//   getSavingsGoalProgress(id: string): number | null {
+//     const goal = this.savingsGoals.find(goal => goal.id === id);
+//     if (!goal) return null;
 
-    return (goal.currentAmount / goal.targetAmount) * 100;
-  }
-}
+//     return (goal.currentAmount / goal.targetAmount) * 100;
+//   }
+// }

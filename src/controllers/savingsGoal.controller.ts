@@ -6,10 +6,21 @@ import * as savingsGoalService from '../services/savingsGoal.service';
 // Get all savings goals
 export const getSavingsGoals = async (req: Request, res: Response) => {
     try {
-        const goals = await savingsGoalService.getAllSavingsGoals(req.user!.id);
+        const { limit, status = 'all' } = req.query;
+        
+        const goals = await savingsGoalService.getSavingsGoals(req.user!.id, {
+            status: status as 'active' | 'completed' | 'all',
+            limit: limit ? Number(limit) : undefined
+        });
+        
         res.status(200).json(goals);
-    } catch (error) {
-        res.status(500).json({ message: 'Error retrieving savings goals', error });
+    } catch (error: unknown) {
+        console.error('Error getting savings goals:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+        res.status(500).json({ 
+            message: 'Lỗi khi lấy danh sách mục tiêu tiết kiệm',
+            error: errorMessage
+        });
     }
 };
 

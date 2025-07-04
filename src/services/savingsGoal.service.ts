@@ -83,7 +83,31 @@ export const getMonthlySavingsSummary = async (userId: string, month: string) =>
     );
     return result?.total || 0;
 };
+export const getSavingsGoals = async (userId: string, options: {
+    status?: 'active' | 'completed' | 'all',
+    limit?: number
+} = {}) => {
+    const { status = 'all', limit } = options;
+    const db = await connectToDatabase();
 
+    let query = `SELECT * FROM savings_goals WHERE user_id = ?`;
+    const params: any[] = [userId];
+
+    if (status === 'active') {
+        query += ` AND current_amount < target_amount`;
+    } else if (status === 'completed') {
+        query += ` AND current_amount >= target_amount`;
+    }
+
+    query += ` ORDER BY created_at DESC`;
+
+    if (limit) {
+        query += ` LIMIT ?`;
+        params.push(limit);
+    }
+
+    return db.all(query, params);
+};
 export const getSavingsGoalsSummary = async (userId: string) => {
     const db = await connectToDatabase();
     const result = await db.get(
