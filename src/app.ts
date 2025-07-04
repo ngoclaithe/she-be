@@ -49,16 +49,20 @@ const checkDatabaseConnection = (req: express.Request, res: express.Response, ne
   next();
 };
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/savings-goals', savingsGoalRoutes);
-app.use('/api/budgets', budgetRoutes);
-app.use('/api/reports', reportRoutes);
+// API Routes
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/transactions', transactionRoutes);
+apiRouter.use('/categories', categoryRoutes);
+apiRouter.use('/savings-goals', savingsGoalRoutes);
+apiRouter.use('/budgets', budgetRoutes);
+apiRouter.use('/reports', reportRoutes);
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Mount API router with /api prefix
+app.use('/api', apiRouter);
+
+// Swagger documentation - Đặt sau khi đã mount /api router
+app.use('/api/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 404 Handler - Phải đặt sau tất cả các routes khác
 app.use((req, res, next) => {
