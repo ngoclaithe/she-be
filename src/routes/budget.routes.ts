@@ -1,6 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import * as budgetController from '../controllers/budget.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
+
+// Định nghĩa kiểu cho request handler
+type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<any>;
 
 const router = Router();
 
@@ -22,7 +25,7 @@ const router = Router();
  *       200:
  *         description: Danh sách ngân sách
  */
-router.get('/', authMiddleware, budgetController.getBudgetsByMonth);
+router.get('/', authMiddleware, budgetController.getBudgetsByMonth as AsyncRequestHandler);
 
 /**
  * @swagger
@@ -50,7 +53,7 @@ router.get('/', authMiddleware, budgetController.getBudgetsByMonth);
  *       201:
  *         description: Tạo thành công
  */
-router.post('/', authMiddleware, budgetController.createBudget);
+router.post('/', authMiddleware, budgetController.createBudget as AsyncRequestHandler);
 
 /**
  * @swagger
@@ -79,7 +82,7 @@ router.post('/', authMiddleware, budgetController.createBudget);
  *       200:
  *         description: Cập nhật thành công
  */
-router.put('/:id', authMiddleware, budgetController.updateBudget);
+router.put('/:id', authMiddleware, budgetController.updateBudget as AsyncRequestHandler);
 
 /**
  * @swagger
@@ -99,7 +102,7 @@ router.put('/:id', authMiddleware, budgetController.updateBudget);
  *       204:
  *         description: Xóa thành công
  */
-router.delete('/:id', authMiddleware, budgetController.deleteBudget);
+router.delete('/:id', authMiddleware, budgetController.deleteBudget as AsyncRequestHandler);
 
 /**
  * @swagger
@@ -113,6 +116,6 @@ router.delete('/:id', authMiddleware, budgetController.deleteBudget);
  *       200:
  *         description: Danh sách cảnh báo ngân sách
  */
-router.get('/alerts', authMiddleware, budgetController.getBudgetAlerts);
+router.get('/alerts', authMiddleware, budgetController.getBudgetAlerts as AsyncRequestHandler);
 
 export default router;
