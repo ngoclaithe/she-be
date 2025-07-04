@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import * as savingsGoalService from '../services/savingsGoal.service';
 
+// Using the extended Request type from our type declarations
+
 // Get all savings goals
 export const getSavingsGoals = async (req: Request, res: Response) => {
     try {
@@ -62,6 +64,62 @@ export const getSavingsGoalProgress = async (req: Request, res: Response) => {
         const progress = await savingsGoalService.getSavingsGoalProgress(id);
         res.status(200).json(progress);
     } catch (error) {
-        res.status(500).json({ message: 'Error retrieving savings goal progress', error });
+        res.status(500).json({ message: 'Error getting savings goal progress', error });
+    }
+};
+
+export const getMonthlySavingsSummary = async (req: Request, res: Response): Promise<void> => {
+    const { month } = req.query;
+    
+    if (!month) {
+        res.status(400).json({ 
+            message: 'Month is a required parameter (YYYY-MM)' 
+        });
+        return;
+    }
+
+    try {
+        const total = await savingsGoalService.getMonthlySavingsSummary(
+            req.user!.id,
+            month as string
+        );
+        res.status(200).json({ total });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Error retrieving monthly savings summary', 
+            error 
+        });
+    }
+};
+
+export const getSavingsGoalsSummary = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const summary = await savingsGoalService.getSavingsGoalsSummary(
+            req.user!.id
+        );
+        res.status(200).json(summary);
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Error retrieving savings goals summary', 
+            error 
+        });
+    }
+};
+
+export const getActiveSavingsGoals = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { limit = '3' } = req.query;
+        const limitNumber = Math.min(parseInt(limit as string, 10) || 3, 10);
+        
+        const goals = await savingsGoalService.getActiveSavingsGoals(
+            req.user!.id,
+            limitNumber
+        );
+        res.status(200).json(goals);
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Error retrieving active savings goals', 
+            error 
+        });
     }
 };

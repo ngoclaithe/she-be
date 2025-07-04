@@ -66,7 +66,54 @@ export const contributeToSavingsGoal = async (id: string, amount: number) => {
 export const getSavingsGoalProgress = async (id: string) => {
     const db = await connectToDatabase();
     return db.get(
-        `SELECT id, name, target_amount, current_amount, target_date, created_at FROM savings_goals WHERE id = ?`,
+        'SELECT current_amount, target_amount FROM savings_goals WHERE id = ?',
         [id]
+    );
+};
+
+export const getMonthlySavingsSummary = async (userId: string, month: string) => {
+    const db = await connectToDatabase();
+    const result = await db.get(
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions 
+         WHERE user_id = ? 
+         AND type = 'savings' 
+         AND strftime('%Y-%m', date) = ?`,
+        [userId, month]
+    );
+    return result?.total || 0;
+};
+
+export const getSavingsGoalsSummary = async (userId: string) => {
+    const db = await connectToDatabase();
+    const result = await db.get(
+        `SELECT 
+            COUNT(*) as totalGoals,
+            SUM(target_amount) as totalTarget,
+            SUM(current_amount) as totalSaved,
+            SUM(CASE WHEN current_amount >= target_amount THEN 1 ELSE 0 END) as completedGoals
+         FROM savings_goals 
+         WHERE user_id = ?`,
+        [userId]
+    );
+    return {
+        totalGoals: result?.totalGoals || 0,
+        totalTarget: result?.totalTarget || 0,
+        totalSaved: result?.totalSaved || 0,
+        completedGoals: result?.completedGoals || 0
+    };
+};
+
+export const getActiveSavingsGoals = async (userId: string, limit: number = 3) => {
+    const db = await connectToDatabase();
+    return db.all(
+        `SELECT *, 
+                (current_amount / target_amount) * 100 as progress
+         FROM savings_goals 
+         WHERE user_id = ? 
+         AND current_amount < target_amount
+         ORDER BY target_date ASC
+         LIMIT ?`,
+        [userId, limit]
     );
 };

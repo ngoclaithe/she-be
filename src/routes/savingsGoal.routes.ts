@@ -1,6 +1,12 @@
-import { Router } from 'express';
+import express, { Router, Request, Response, NextFunction } from 'express';
 import * as savingsGoalController from '../controllers/savingsGoal.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
+
+// Import the extended Request type from our type declarations
+import {} from '../types/express';
+
+// Type for error handling middleware
+type ErrorWithStatus = Error & { statusCode?: number };
 
 const router = Router();
 
@@ -142,5 +148,131 @@ router.post('/:id/contribute', authMiddleware, savingsGoalController.contributeT
  *         description: Tiến độ mục tiêu tiết kiệm
  */
 router.get('/:id/progress', authMiddleware, savingsGoalController.getSavingsGoalProgress);
+
+/**
+ * @swagger
+ * /api/savings-goals/summary/monthly:
+ *   get:
+ *     summary: Lấy tổng quan tiết kiệm hàng tháng
+ *     description: Lấy tổng số tiền đã tiết kiệm và mục tiêu theo từng tháng
+ *     tags: [SavingsGoal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: string
+ *           format: YYYY-MM
+ *           example: "2025-07"
+ *         description: Tháng cần xem báo cáo (định dạng YYYY-MM)
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalSaved:
+ *                   type: number
+ *                   description: Tổng số tiền đã tiết kiệm
+ *                 totalTarget:
+ *                   type: number
+ *                   description: Tổng mục tiêu tiết kiệm
+ *                 progressPercentage:
+ *                   type: number
+ *                   description: Phần trăm hoàn thành
+ */
+router.get('/summary/monthly', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+    savingsGoalController.getMonthlySavingsSummary(req, res).catch(next);
+});
+
+/**
+ * @swagger
+ * /api/savings-goals/summary:
+ *   get:
+ *     summary: Lấy tổng quan các mục tiêu tiết kiệm
+ *     description: Lấy tổng quan về tất cả các mục tiêu tiết kiệm
+ *     tags: [SavingsGoal]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalGoals:
+ *                   type: integer
+ *                   description: Tổng số mục tiêu
+ *                 completedGoals:
+ *                   type: integer
+ *                   description: Số mục tiêu đã hoàn thành
+ *                 inProgressGoals:
+ *                   type: integer
+ *                   description: Số mục tiêu đang thực hiện
+ *                 totalSaved:
+ *                   type: number
+ *                   description: Tổng số tiền đã tiết kiệm
+ *                 totalTarget:
+ *                   type: number
+ *                   description: Tổng mục tiêu tiết kiệm
+ */
+router.get('/summary', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+    savingsGoalController.getSavingsGoalsSummary(req, res).catch(next);
+});
+
+/**
+ * @swagger
+ * /api/savings-goals/active:
+ *   get:
+ *     summary: Lấy danh sách mục tiêu đang hoạt động
+ *     description: Lấy danh sách các mục tiêu tiết kiệm đang hoạt động (chưa hoàn thành)
+ *     tags: [SavingsGoal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 3
+ *         description: Số lượng mục tiêu tối đa cần lấy
+ *     responses:
+ *       200:
+ *         description: Danh sách mục tiêu đang hoạt động
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/SavingsGoal'
+ */
+router.get('/active', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+    savingsGoalController.getActiveSavingsGoals(req, res).catch(next);
+});
+
+// Error handling middleware for savings goal routes
+const savingsGoalErrorHandler = (err: ErrorWithStatus, req: Request, res: Response, next: NextFunction): void => {
+    console.error('Error in savings goal routes:', err);
+    
+    if (!res.headersSent) {
+        const statusCode = err.statusCode || 500;
+        res.status(statusCode).json({ 
+            success: false,
+            message: 'Internal server error in savings goal routes',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+    
+    // Pass to the global error handler
+    next(err);
+};
+
+// Apply error handling middleware
+router.use(savingsGoalErrorHandler as express.ErrorRequestHandler);
 
 export default router;

@@ -49,13 +49,59 @@ const checkDatabaseConnection = (req: express.Request, res: express.Response, ne
   next();
 };
 
-// Routes - setup trước khi apply middleware
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/savings-goals', savingsGoalRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/reports', reportRoutes);
+
+// 404 Handler
+app.use((req, res, next) => {
+    res.status(404).json({
+        success: false,
+        message: 'Not Found',
+        error: `Cannot ${req.method} ${req.originalUrl}`
+    });
+});
+
+// Global error handler
+const errorHandler: express.ErrorRequestHandler = (err, req, res, next) => {
+    console.error('Global error handler:', err);
+    
+    // Handle JWT errors
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+        res.status(401).json({
+            success: false,
+            message: 'Authentication failed',
+            error: 'Invalid or expired token'
+        });
+        return;
+    }
+    
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+        res.status(400).json({
+            success: false,
+            message: 'Validation Error',
+            error: err.message
+        });
+        return;
+    }
+    
+    // Handle other errors
+    const statusCode = (err as any).statusCode || 500;
+    const message = err.message || 'Internal Server Error';
+    
+    res.status(statusCode).json({
+        success: false,
+        message,
+        error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+};
+
+app.use(errorHandler);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const server = app.listen(PORT, '0.0.0.0', () => {

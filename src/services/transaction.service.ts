@@ -58,14 +58,38 @@ export const deleteTransaction = async (id: string) => {
 
 export const getTransactionSummary = async (userId: string, month: string) => {
     const db = await connectToDatabase();
-    const start = `${month}-01`;
-    const end = `${month}-31`;
-    const summary = await db.all(
-        `SELECT type, SUM(amount) as total
-         FROM transactions
-         WHERE user_id = ? AND date BETWEEN ? AND ?
-         GROUP BY type`,
-        [userId, start, end]
+    return db.get(
+        `SELECT 
+            COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as totalIncome,
+            COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as totalExpense
+         FROM transactions 
+         WHERE user_id = ? AND strftime('%Y-%m', date) = ?`,
+        [userId, month]
     );
-    return summary;
+};
+
+export const getMonthlyTransactionSummary = async (userId: string, month: string, type: 'income' | 'expense') => {
+    const db = await connectToDatabase();
+    const result = await db.get(
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions 
+         WHERE user_id = ? 
+         AND type = ? 
+         AND strftime('%Y-%m', date) = ?`,
+        [userId, type, month]
+    );
+    return result?.total || 0;
+};
+
+export const getRecentTransactions = async (userId: string, limit: number = 5) => {
+    const db = await connectToDatabase();
+    return db.all(
+        `SELECT t.*, c.name as category_name, c.icon as category_icon
+         FROM transactions t
+         LEFT JOIN categories c ON t.category_id = c.id
+         WHERE t.user_id = ?
+         ORDER BY t.date DESC, t.created_at DESC
+         LIMIT ?`,
+        [userId, limit]
+    );
 };
