@@ -25,16 +25,55 @@ export const getTransactions = async (
 };
 
 export const createTransaction = async (transactionData: any) => {
+    console.log('Starting to create transaction with data:', transactionData);
     const db = await connectToDatabase();
     const {
         id, userId, categoryId, amount, description, type, date, createdAt
     } = transactionData;
-    await db.run(
-        `INSERT INTO transactions (id, user_id, category_id, amount, description, type, date, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, userId, categoryId, amount, description, type, date, createdAt]
-    );
-    return transactionData;
+
+    // Validate required fields
+    if (!id || !userId || !categoryId || amount === undefined || !type || !date || !createdAt) {
+        const errorMsg = 'Missing required transaction fields';
+        console.error(errorMsg, { id, userId, categoryId, amount, type, date, createdAt });
+        throw new Error(errorMsg);
+    }
+
+    try {
+        console.log('Executing database insert...');
+        const result = await db.run(
+            `INSERT INTO transactions 
+             (id, user_id, category_id, amount, description, type, date, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, userId, categoryId, amount, description, type, date, createdAt]
+        );
+        
+        console.log('Database insert result:', { 
+            changes: result.changes, 
+            lastID: result.lastID 
+        });
+        
+        // Return the created transaction with all fields
+        const newTransaction = {
+            id,
+            userId,
+            categoryId,
+            amount,
+            description,
+            type,
+            date,
+            createdAt
+        };
+        
+        console.log('Successfully created transaction:', newTransaction);
+        return newTransaction;
+    } catch (error) {
+        console.error('Error in createTransaction:', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            transactionData
+        });
+        throw error;
+    }
 };
 
 export const updateTransaction = async (id: string, updateData: any) => {

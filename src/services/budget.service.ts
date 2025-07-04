@@ -48,15 +48,93 @@ export const deleteBudget = async (id: string) => {
     return { message: 'Budget deleted successfully' };
 };
 
-// Lấy cảnh báo ngân sách (ví dụ: chi tiêu vượt quá ngân sách)
 export const getBudgetAlerts = async (userId: string) => {
     const db = await connectToDatabase();
-    // Ví dụ: lấy các ngân sách đã vượt quá số tiền cho phép
-    return db.all(
-        `SELECT b.*, 
-            (SELECT SUM(amount) FROM transactions t WHERE t.user_id = b.user_id AND t.category_id = b.category_id AND strftime('%Y-%m', t.date) = strftime('%Y-%m', b.month)) as spent
+    const currentMonth = new Date().toISOString().slice(0, 7); 
+    
+    console.log(`[${new Date().toISOString()}] Lấy thông tin ngân sách cho user ${userId}, tháng ${currentMonth}`);
+    
+    const budgets = await db.all(
+        `SELECT 
+            b.*,
+            c.name as category_name,
+            c.icon as category_icon,
+            c.color as category_color,
+            (SELECT COALESCE(SUM(amount), 0) 
+             FROM transactions t 
+             WHERE t.user_id = b.user_id 
+             AND t.category_id = b.category_id 
+             AND t.type = 'expense'
+             AND strftime('%Y-%m', t.date) = ?) as spent
          FROM budgets b
-         WHERE b.user_id = ?`,
-        [userId]
+         JOIN categories c ON b.category_id = c.id
+         WHERE b.user_id = ? AND b.month = ?
+         ORDER BY c.name ASC`,  
+        [currentMonth, userId, currentMonth]
     );
+
+    console.log(`Tìm thấy ${budgets.length} ngân sách trong tháng`);
+
+    const budgetDetails = await Promise.all(budgets.map(async (budget: any) => {
+        const spent = budget.spent || 0;
+        const remaining = Math.max(0, budget.amount - spent);
+        const usagePercentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+        
+        let alertLevel = 'success';
+        let message = '';
+        
+        if (budget.amount === 0) {
+            message = 'Chưa đặt ngân sách';
+            alertLevel = 'info';
+        } else if (spent >= budget.amount) {
+            alertLevel = 'danger';
+            message = `Đã vượt quá ngân sách ${(usagePercentage - 100).toFixed(0)}%`;
+        } else if (usagePercentage >= 80) {
+            alertLevel = 'warning';
+            message = `Sắp vượt quá ngân sách (${usagePercentage.toFixed(0)}% đã sử dụng)`;
+        } else if (usagePercentage >= 50) {
+            alertLevel = 'info';
+            message = `Đã sử dụng ${usagePercentage.toFixed(0)}% ngân sách`;
+        } else {
+            message = `Đã sử dụng ${usagePercentage.toFixed(0)}% ngân sách`;
+        }
+        
+        const formatCurrency = (amount: number) => {
+            return new Intl.NumberFormat('vi-VN', { 
+                style: 'currency', 
+                currency: 'VND',
+                maximumFractionDigits: 0
+            }).format(amount);
+        };
+        
+        return {
+            id: budget.id,
+            categoryId: budget.category_id,
+            categoryName: budget.category_name,
+            categoryIcon: budget.category_icon,
+            categoryColor: budget.category_color,
+            budgetAmount: budget.amount,
+            budgetAmountFormatted: formatCurrency(budget.amount),
+            spent: spent,
+            spentFormatted: formatCurrency(spent),
+            remaining: remaining,
+            remainingFormatted: formatCurrency(remaining),
+            usagePercentage: parseFloat(usagePercentage.toFixed(2)),
+            month: budget.month,
+            alertLevel,
+            message,
+            lastUpdated: new Date().toISOString(),
+            // Thêm thông tin bổ sung
+            progress: Math.min(100, Math.max(0, usagePercentage)), // Đảm bảo progress từ 0-100
+            isOverBudget: spent > budget.amount,
+            daysRemainingInMonth: new Date(
+                new Date().getFullYear(), 
+                new Date().getMonth() + 1, 
+                0
+            ).getDate() - new Date().getDate()
+        };
+    }));
+    
+    console.log(`Đã xử lý thông tin cho ${budgetDetails.length} ngân sách`);
+    return budgetDetails;
 };

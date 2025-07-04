@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
@@ -11,63 +11,55 @@ import reportRoutes from './routes/report.routes';
 import { connectToDatabase } from './utils/db';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
+import { requestLogger } from './middlewares/requestLogger';
+import logger from './utils/logger';
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '5000', 10);
 
-// CORS Configuration
-const corsOptions = {
-  origin: '*', // Allow all origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Allowed HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'], // Allowed headers
-  credentials: true, // Allow credentials (cookies, authorization headers, etc.)
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
-};
-
-// Middleware
-app.use(cors(corsOptions));
+// Middleware cơ bản
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
 app.use(bodyParser.json());
 
-// Health check endpoint - luôn hoạt động ngay cả khi database chưa kết nối
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString()
-  });
+// Middleware logging
+app.use(requestLogger);
+
+// Health check endpoint
+app.get('/api/health', (req: Request, res: Response) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        message: 'Server is running',
+        timestamp: new Date().toISOString()
+    });
 });
 
-// Middleware để kiểm tra database connection
-let isDatabaseConnected = false;
-
-const checkDatabaseConnection = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!isDatabaseConnected && !req.path.includes('/health')) {
-    return res.status(503).json({
-      error: 'Database not connected yet. Please try again later.',
-      status: 'Service Unavailable'
+// Kết nối database
+connectToDatabase()
+    .then(() => {
+        console.log('Database connected successfully');
+    })
+    .catch((error) => {
+        console.error('Database connection error:', error);
     });
-  }
-  next();
-};
 
-// API Routes
-const apiRouter = express.Router();
-apiRouter.use('/auth', authRoutes);
-apiRouter.use('/transactions', transactionRoutes);
-apiRouter.use('/categories', categoryRoutes);
-apiRouter.use('/savings-goals', savingsGoalRoutes);
-apiRouter.use('/savings', savingsRoutes);
-apiRouter.use('/budgets', budgetRoutes);
-apiRouter.use('/reports', reportRoutes);
+// Các routes
+app.use('/api/auth', authRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/savings-goals', savingsGoalRoutes);
+app.use('/api/savings', savingsRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/reports', reportRoutes);
 
-// Mount API router with /api prefix
-app.use('/api', apiRouter);
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Swagger documentation - Đặt sau khi đã mount /api router
-app.use('/api/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// 404 Handler - Phải đặt sau tất cả các routes khác
-app.use((req, res, next) => {
+// Xử lý 404
+app.use((req: Request, res: Response) => {
     res.status(404).json({
         success: false,
         message: 'Not Found',
@@ -75,87 +67,46 @@ app.use((req, res, next) => {
     });
 });
 
-// Global error handler - Phải đặt sau tất cả các routes nhưng trước 404 handler
-const errorHandler: express.ErrorRequestHandler = (err, req, res, next) => {
-    console.error('Global error handler:', err);
-    
-    // Handle JWT errors
-    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
-        res.status(401).json({
-            success: false,
-            message: 'Authentication failed',
-            error: 'Invalid or expired token'
-        });
-        return;
-    }
-    
-    // Handle validation errors
-    if (err.name === 'ValidationError') {
-        res.status(400).json({
-            success: false,
-            message: 'Validation Error',
-            error: err.message
-        });
-        return;
-    }
-    
-    // Handle other errors
-    const statusCode = (err as any).statusCode || 500;
-    const message = err.message || 'Internal Server Error';
-    
-    res.status(statusCode).json({
-        success: false,
-        message,
-        error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+// Xử lý lỗi toàn cục
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    logger.error('Unhandled error', {
+        error: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+        path: req.originalUrl,
+        method: req.method
     });
-};
-
-app.use(errorHandler);
-
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Health check available at: http://0.0.0.0:${PORT}/health`);
-});
-
-// Kết nối database bất đồng bộ
-connectToDatabase()
-  .then(() => {
-    isDatabaseConnected = true;
-    console.log('Database connected successfully');
-  })
-  .catch((err) => {
-    console.error('Database connection failed:', err);
-    console.log('Server will continue running but API endpoints will return 503');
     
-    // Thử kết nối lại sau 30 giây
-    setTimeout(() => {
-      console.log('Attempting to reconnect to database...');
-      connectToDatabase()
-        .then(() => {
-          isDatabaseConnected = true;
-          console.log('Database reconnected successfully');
-        })
-        .catch((retryErr) => {
-          console.error('Database reconnection failed:', retryErr);
-        });
-    }, 30000);
-  });
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+    const statusCode = parseInt(err.statusCode, 10) || 500;
+    
+    res.status(statusCode).json({ 
+        success: false,
+        message: 'Internal Server Error',
+        error: process.env.NODE_ENV === 'production' 
+            ? 'Something went wrong' 
+            : err.message
+    });
 });
 
+// Khởi động server
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Health check available at: http://0.0.0.0:${PORT}/api/health`);
+});
+
+// Xử lý tín hiệu dừng ứng dụng
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+    console.log('SIGINT received, shutting down gracefully...');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+
+    // Nếu server không đóng sau 5s, thoát ngay
+    setTimeout(() => {
+        console.error('Forcing shutdown...');
+        process.exit(1);
+    }, 5000);
 });
 
 export default app;

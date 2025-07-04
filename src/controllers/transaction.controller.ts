@@ -1,11 +1,20 @@
 import { Request, Response } from 'express';
 import * as transactionService from '../services/transaction.service';
-
-// Using the extended Request type from our type declarations
-
+import { v4 as uuidv4 } from 'uuid';
 // Get all transactions with pagination and filtering
 export const getTransactions = async (req: Request, res: Response) => {
     const { page = '1', limit = '10', type, category } = req.query;
+    const userId = req.user?.id;
+
+    console.log('Fetching transactions', {
+        userId,
+        page,
+        limit,
+        type,
+        category,
+        path: req.path
+    });
+
     try {
         const transactions = await transactionService.getTransactions(
             Number(page),
@@ -13,20 +22,64 @@ export const getTransactions = async (req: Request, res: Response) => {
             type as string,
             category as string
         );
+
+        console.log('Successfully fetched transactions', {
+            userId,
+            count: transactions.length
+        });
+
         res.status(200).json(transactions);
     } catch (error) {
-        res.status(500).json({ message: 'Error retrieving transactions', error });
+        console.error('Error fetching transactions', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            userId
+        });
+
+        res.status(500).json({
+            message: 'Error retrieving transactions',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 };
 
-// Create a new transaction
 export const createTransaction = async (req: Request, res: Response) => {
-    const transactionData = req.body;
     try {
+        const transactionData = {
+            ...req.body,
+            userId: req.user!.id,
+            id: uuidv4(),
+            createdAt: new Date().toISOString()
+        };
+
+        console.log('Creating new transaction', {
+            userId: req.user!.id,
+            transactionData: {
+                ...transactionData,
+                amount: transactionData.amount // Log số tiền
+            }
+        });
+
         const newTransaction = await transactionService.createTransaction(transactionData);
+
+        console.log('Transaction created successfully', {
+            transactionId: newTransaction.id,
+            userId: req.user!.id
+        });
+
         res.status(201).json(newTransaction);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating transaction', error });
+        console.error('Error creating transaction', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            userId: req.user?.id,
+            requestBody: req.body
+        });
+
+        res.status(500).json({
+            message: 'Error creating transaction',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 };
 
@@ -65,11 +118,11 @@ export const getTransactionSummary = async (req: Request, res: Response) => {
 };
 export const getMonthlyTransactionSummary = async (req: Request, res: Response): Promise<void> => {
     const { month, type } = req.query;
-    
+
     if (!month || !type || (type !== 'income' && type !== 'expense')) {
-        res.status(400).json({ 
+        res.status(400).json({
             success: false,
-            message: 'Thiếu tham số bắt buộc: month (YYYY-MM) và type (income/expense)' 
+            message: 'Thiếu tham số bắt buộc: month (YYYY-MM) và type (income/expense)'
         });
         return;
     }
@@ -80,8 +133,8 @@ export const getMonthlyTransactionSummary = async (req: Request, res: Response):
             month as string,
             type as 'income' | 'expense'
         );
-        
-        res.status(200).json({ 
+
+        res.status(200).json({
             success: true,
             data: {
                 total,
@@ -91,7 +144,7 @@ export const getMonthlyTransactionSummary = async (req: Request, res: Response):
         });
     } catch (error) {
         console.error('Error getting monthly transaction summary:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             message: 'Lỗi khi lấy tổng quan giao dịch',
             error: error instanceof Error ? error.message : 'Lỗi không xác định'
@@ -102,7 +155,7 @@ export const getMonthlyTransactionSummary = async (req: Request, res: Response):
 export const getRecentTransactions = async (req: Request, res: Response): Promise<void> => {
     const { limit = '5' } = req.query;
     const limitNumber = Math.min(parseInt(limit as string, 10) || 5, 50);
-    
+
     try {
         const transactions = await transactionService.getRecentTransactions(
             req.user!.id,
@@ -110,9 +163,9 @@ export const getRecentTransactions = async (req: Request, res: Response): Promis
         );
         res.status(200).json(transactions);
     } catch (error) {
-        res.status(500).json({ 
-            message: 'Error retrieving recent transactions', 
-            error 
+        res.status(500).json({
+            message: 'Error retrieving recent transactions',
+            error
         });
     }
 };
