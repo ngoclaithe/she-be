@@ -19,11 +19,21 @@ const app = express();
 // Middleware cơ bản
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
-}));
+
+// Cấu hình CORS
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? (process.env.FRONTEND_URL || '*')  // Cho phép tất cả trong production nếu không có FRONTEND_URL
+    : (process.env.FRONTEND_URL || 'http://localhost:3000'),  // Mặc định cho môi trường development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
+
+// Log CORS configuration
+console.log(`CORS configured with origin: ${corsOptions.origin}`);
 
 // Middleware logging
 app.use(requestLogger);
