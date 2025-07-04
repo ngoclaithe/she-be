@@ -3,15 +3,25 @@ import * as reportService from '../services/report.service';
 
 export const getMonthlyReport = async (req: Request, res: Response) => {
     try {
-        const { year, month } = req.query;
+        const year = req.query.year ? Number(req.query.year) : undefined;
+        const month = req.query.month ? Number(req.query.month) : undefined;
+        
+        console.log(`[API] Getting monthly report for user ${req.user!.id}, year: ${year}, month: ${month}`);
+        
         const report = await reportService.getMonthlyReport(
             req.user!.id,
-            Number(year),
-            Number(month)
+            year,
+            month
         );
+        
         res.status(200).json(report);
     } catch (error) {
-        res.status(500).json({ message: 'Error retrieving monthly report', error });
+        console.error('Error in getMonthlyReport:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error retrieving monthly report',
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
     }
 };
 
