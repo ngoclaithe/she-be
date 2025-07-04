@@ -57,7 +57,10 @@ app.use('/api/savings-goals', savingsGoalRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/reports', reportRoutes);
 
-// 404 Handler
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// 404 Handler - Phải đặt sau tất cả các routes khác
 app.use((req, res, next) => {
     res.status(404).json({
         success: false,
@@ -66,7 +69,7 @@ app.use((req, res, next) => {
     });
 });
 
-// Global error handler
+// Global error handler - Phải đặt sau tất cả các routes nhưng trước 404 handler
 const errorHandler: express.ErrorRequestHandler = (err, req, res, next) => {
     console.error('Global error handler:', err);
     
@@ -102,7 +105,6 @@ const errorHandler: express.ErrorRequestHandler = (err, req, res, next) => {
 };
 
 app.use(errorHandler);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
