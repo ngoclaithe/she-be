@@ -17,7 +17,7 @@ export class CategoryModel {
     this.categories = [];
   }
 
-  public create(userId: string, name: string, icon?: string, color?: string, type: 'income' | 'expense'): Category {
+  public create(userId: string, name: string, type: 'income' | 'expense', icon?: string, color?: string): Category {
     const newCategory: Category = {
       id: uuidv4(),
       userId,
