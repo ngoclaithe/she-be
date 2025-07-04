@@ -12,7 +12,7 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 
 // CORS Configuration
 const corsOptions = {
@@ -27,22 +27,82 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
-// Kết nối database và tạo bảng
-connectToDatabase().then(() => {
-  // Routes
-  app.use('/api/auth', authRoutes);
-  app.use('/api/transactions', transactionRoutes);
-  app.use('/api/categories', categoryRoutes);
-  app.use('/api/savings-goals', savingsGoalRoutes);
-  app.use('/api/budgets', budgetRoutes);
-  app.use('/api/reports', reportRoutes);
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-  // Start the server
-  app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+// Health check endpoint - luôn hoạt động ngay cả khi database chưa kết nối
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
   });
-}).catch((err) => {
-  console.error('Database connection failed:', err);
-  process.exit(1);
 });
+
+// Middleware để kiểm tra database connection
+let isDatabaseConnected = false;
+
+const checkDatabaseConnection = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (!isDatabaseConnected && !req.path.includes('/health')) {
+    return res.status(503).json({
+      error: 'Database not connected yet. Please try again later.',
+      status: 'Service Unavailable'
+    });
+  }
+  next();
+};
+
+// Routes - setup trước khi apply middleware
+app.use('/api/auth', authRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/savings-goals', savingsGoalRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Start server immediately
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Health check available at: http://localhost:${PORT}/health`);
+});
+
+// Kết nối database bất đồng bộ
+connectToDatabase()
+  .then(() => {
+    isDatabaseConnected = true;
+    console.log('Database connected successfully');
+  })
+  .catch((err) => {
+    console.error('Database connection failed:', err);
+    console.log('Server will continue running but API endpoints will return 503');
+    
+    // Thử kết nối lại sau 30 giây
+    setTimeout(() => {
+      console.log('Attempting to reconnect to database...');
+      connectToDatabase()
+        .then(() => {
+          isDatabaseConnected = true;
+          console.log('Database reconnected successfully');
+        })
+        .catch((retryErr) => {
+          console.error('Database reconnection failed:', retryErr);
+        });
+    }, 30000);
+  });
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+export default app;
