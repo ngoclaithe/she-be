@@ -29,7 +29,7 @@ const corsOptions = {
 app.use((0, cors_1.default)(corsOptions));
 app.use(body_parser_1.default.json());
 // Health check endpoint - luôn hoạt động ngay cả khi database chưa kết nối
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
         message: 'Server is running',
