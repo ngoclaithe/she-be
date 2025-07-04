@@ -58,10 +58,9 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Start server immediately
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
-  console.log(`Health check available at: http://localhost:${PORT}/health`);
+  console.log(`Health check available at: http://0.0.0.0:${PORT}/health`);
 });
 
 // Kết nối database bất đồng bộ
