@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes';
 import transactionRoutes from './routes/transaction.routes';
 import categoryRoutes from './routes/category.routes';
 import savingsGoalRoutes from './routes/savingsGoal.routes';
+import savingsRoutes from './routes/savings.routes';
 import budgetRoutes from './routes/budget.routes';
 import reportRoutes from './routes/report.routes';
 import { connectToDatabase } from './utils/db';
@@ -55,6 +56,7 @@ apiRouter.use('/auth', authRoutes);
 apiRouter.use('/transactions', transactionRoutes);
 apiRouter.use('/categories', categoryRoutes);
 apiRouter.use('/savings-goals', savingsGoalRoutes);
+apiRouter.use('/savings', savingsRoutes);
 apiRouter.use('/budgets', budgetRoutes);
 apiRouter.use('/reports', reportRoutes);
 
