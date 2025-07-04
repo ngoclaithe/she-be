@@ -63,28 +63,38 @@ export const getTransactionSummary = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error retrieving transaction summary', error });
     }
 };
-
 export const getMonthlyTransactionSummary = async (req: Request, res: Response): Promise<void> => {
     const { month, type } = req.query;
     
     if (!month || !type || (type !== 'income' && type !== 'expense')) {
         res.status(400).json({ 
-            message: 'Month and type (income/expense) are required parameters' 
+            success: false,
+            message: 'Thiếu tham số bắt buộc: month (YYYY-MM) và type (income/expense)' 
         });
         return;
     }
 
     try {
         const total = await transactionService.getMonthlyTransactionSummary(
-            req.user!.id, 
-            month as string, 
+            req.user!.id,
+            month as string,
             type as 'income' | 'expense'
         );
-        res.status(200).json({ total });
+        
+        res.status(200).json({ 
+            success: true,
+            data: {
+                total,
+                month,
+                type
+            }
+        });
     } catch (error) {
+        console.error('Error getting monthly transaction summary:', error);
         res.status(500).json({ 
-            message: `Error retrieving monthly ${type} summary`, 
-            error 
+            success: false,
+            message: 'Lỗi khi lấy tổng quan giao dịch',
+            error: error instanceof Error ? error.message : 'Lỗi không xác định'
         });
     }
 };
